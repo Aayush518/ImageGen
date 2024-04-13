@@ -4,29 +4,63 @@
 
 {% block content %}
 
-<h1 class="mb-6 text-3xl text-green-800">Generate images with props</h1>
-<div class="max-w-sm bg-white border border-gray-200 rounded-lg shadow-md dark:bg-gray-800 dark:border-gray-700">
-    <a href="#">
-        <img class="rounded-t-lg" src="/docs/images/blog/image-1.jpg" alt="" />
-    </a>
-    <div class="p-5">
-        <a href="#">
-            <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Noteworthy technology
-                acquisitions 2021</h5>
-        </a>
-        <p class="mb-3 font-normal text-gray-700 dark:text-gray-400">Here are the biggest enterprise technology
-            acquisitions of 2021 so far, in reverse chronological order.</p>
-        <a href="#"
-            class="inline-flex items-center px-3 py-2 text-sm font-medium text-center text-white bg-green-700 rounded-lg hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800">
-            Read more
-            <svg class="w-4 h-4 ml-2 -mr-1" fill="currentColor" viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd"
-                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                    clip-rule="evenodd"></path>
-            </svg>
-        </a>
+{% load static %}
+
+
+    
+<body class="bg-gray-100">
+    <div class="container mx-auto py-10">
+        <h1 class="text-4xl font-bold text-gray-800 mb-8">AI Image Generator</h1>
+
+        <div class="bg-white shadow-md rounded-lg p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Generate an Image</h2>
+
+            <form id="image-generate-form" class="space-y-4">
+                <div>
+                    <label for="prompt" class="block font-medium text-gray-700 mb-2">Prompt</label>
+                    <textarea id="prompt" name="prompt" rows="3" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter a description of the image you want to generate..."></textarea>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">Generate</button>
+                </div>
+            </form>
+
+            <div id="image-container" class="mt-8 flex justify-center"></div>
+        </div>
     </div>
-</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.1/fabric.min.js"></script>
+    <!-- include canvas.html from templates -->
+    <div class="flex justify-center items-center h-screen">
+        {% include 'canvas.html' %}
+      </div>
+
+
+
+    <script>
+        document.getElementById('image-generate-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const prompt = document.getElementById('prompt').value;
+
+            axios.post('/generate_image/', { prompt })
+                .then(response => {
+                    const imageContainer = document.getElementById('image-container');
+                    imageContainer.innerHTML = '';
+
+                    const img = document.createElement('img');
+                    img.src = response.data.image_url;
+                    img.alt = 'Generated Image';
+                    img.classList.add('max-w-full', 'h-auto');
+
+                    imageContainer.appendChild(img);
+                })
+                .catch(error => {
+                    console.error('Error generating image:', error);
+                });
+        });
+    </script>
+
+<script src="{% static 'js/canvas.js' %}"></script>
 
 {% endblock content %}

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Drawing Application</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .canvas-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .canvas-container #canvas-container {
+      position: relative;
+      width: 80%;
+      max-width: 800px;
+      height: 60vh;
+      background-color: #f0f0f0;
+      border: 2px solid #000;
+    }
+    .canvas-container #map-canvas {
+      width: 100%;
+      height: 100%;
+    }
+    .canvas-container .toolbar {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .canvas-container .toolbar button, .canvas-container .color-picker {
+      margin: 0 5px;
+      padding: 10px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+    }
+    .canvas-container .color-picker {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas-container">
+    <div id="canvas-container">
+      <canvas id="map-canvas"></canvas>
+    </div>
+    <div class="toolbar">
+      <input type="color" id="color-picker" class="color-picker">
+      <button id="freehand-draw">Freehand Draw</button>
+      <button id="draw-line">Draw Line</button>
+      <button id="draw-rectangle">Draw Rectangle</button>
+      <button id="draw-circle">Draw Circle</button>
+      <button id="eraser">Eraser</button>
+      <button id="clear-canvas">Clear Canvas</button>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.3.1/fabric.min.js"></script>
+  <script>
+    const canvas = new fabric.Canvas('map-canvas', {
+      backgroundColor: '#ffffff',
+      selection: false,
+      width: document.getElementById('canvas-container').offsetWidth,
+      height: document.getElementById('canvas-container').offsetHeight
+    });
+
+    // Resize canvas when window is resized
+    window.addEventListener('resize', () => {
+      canvas.setDimensions({
+        width: document.getElementById('canvas-container').offsetWidth,
+        height: document.getElementById('canvas-container').offsetHeight
+      });
+    });
+
+    let isDrawing = false;
+    let lastX, lastY;
+
+    document.getElementById('freehand-draw').addEventListener('click', () => {
+      canvas.isDrawingMode = true;
+      canvas.freeDrawingBrush.color = document.getElementById('color-picker').value;
+      canvas.freeDrawingBrush.width = 2;
+    });
+
+    document.getElementById('draw-line').addEventListener('click', () => {
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      canvas.on('mouse:down', (opt) => {
+        isDrawing = true;
+        const pointer = canvas.getPointer(opt.e);
+        lastX = pointer.x;
+        lastY = pointer.y;
+        const line = new fabric.Line([lastX, lastY, lastX, lastY], {
+          strokeWidth: 2,
+          stroke: document.getElementById('color-picker').value
+        });
+        canvas.add(line);
+      });
+
+      canvas.on('mouse:move', (opt) => {
+        if (!isDrawing) return;
+        const pointer = canvas.getPointer(opt.e);
+        const line = canvas.getObjects()[canvas.getObjects().length - 1];
+        line.set({ x2: pointer.x, y2: pointer.y });
+        canvas.renderAll();
+      });
+
+      canvas.on('mouse:up', () => {
+        isDrawing = false;
+      });
+    });
+
+    document.getElementById('draw-rectangle').addEventListener('click', () => {
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      canvas.on('mouse:down', (opt) => {
+        isDrawing = true;
+        const pointer = canvas.getPointer(opt.e);
+        lastX = pointer.x;
+        lastY = pointer.y;
+        const rect = new fabric.Rect({
+          left: lastX,
+          top: lastY,
+          width: 0,
+          height: 0,
+          fill: 'transparent',
+          stroke: document.getElementById('color-picker').value,
+          strokeWidth: 2
+        });
+        canvas.add(rect);
+      });
+
+      canvas.on('mouse:move', (opt) => {
+        if (!isDrawing) return;
+        const pointer = canvas.getPointer(opt.e);
+        const rect = canvas.getObjects()[canvas.getObjects().length - 1];
+        rect.set({ width: pointer.x - lastX, height: pointer.y - lastY });
+        canvas.renderAll();
+      });
+
+      canvas.on('mouse:up', () => {
+        isDrawing = false;
+      });
+    });
+
+    document.getElementById('draw-circle').addEventListener('click', () => {
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      canvas.on('mouse:down', (opt) => {
+        isDrawing = true;
+        const pointer = canvas.getPointer(opt.e);
+        lastX = pointer.x;
+        lastY = pointer.y;
+        const circle = new fabric.Circle({
+          left: lastX,
+          top: lastY,
+          radius: 0,
+          fill: 'transparent',
+          stroke: document.getElementById('color-picker').value,
+          strokeWidth: 2
+        });
+        canvas.add(circle);
+      });
+
+      canvas.on('mouse:move', (opt) => {
+        if (!isDrawing) return;
+        const pointer = canvas.getPointer(opt.e);
+        const circle = canvas.getObjects()[canvas.getObjects().length - 1];
+        const radius = Math.sqrt(Math.pow(pointer.x - lastX, 2) + Math.pow(pointer.y - lastY, 2));
+        circle.set({ radius: radius });
+        canvas.renderAll();
+      });
+
+      canvas.on('mouse:up', () => {
+        isDrawing = false;
+      });
+    });
+
+    document.getElementById('eraser').addEventListener('click', () => {
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      canvas.forEachObject((obj) => {
+        obj.set({
+          selectable: false
+        });
+      });
+      canvas.on('mouse:down', (opt) => {
+        isDrawing = true;
+        const pointer = canvas.getPointer(opt.e);
+        const objects = canvas.getObjects();
+        objects.forEach(obj => {
+          if (obj.containsPoint(pointer)) {
+            canvas.remove(obj);
+          }
+        });
+      });
+
+      canvas.on('mouse:move', (opt) => {
+        if (!isDrawing) return;
+        const pointer = canvas.getPointer(opt.e);
+        const objects = canvas.getObjects();
+        objects.forEach(obj => {
+          if (obj.containsPoint(pointer)) {
+            canvas.remove(obj);
+          }
+        });
+      });
+
+      canvas.on('mouse:up', () => {
+        isDrawing = false;
+      });
+    });
+
+    document.getElementById('clear-canvas').addEventListener('click', () => {
+      canvas.clear();
+    });
+
+    document.getElementById('color-picker').addEventListener('input', () => {
+      canvas.freeDrawingBrush.color = document.getElementById('color-picker').value;
+    });
+
+    canvas.on('object:modified', (e) => {
+      console.log('Object modified:', e.target);
+    });
+
+    canvas.on('object:moving', (e) => {
+      console.log('Object moving:', e.target);
+    });
+
+    canvas.on('object:scaling', (e) => {
+      console.log('Object scaling:', e.target);
+    });
+  </script>
+</body>
+</html>
