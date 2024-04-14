@@ -3,12 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
   <title>Advanced Drawing Application</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
       padding: 0;
+      background-color: #f5f5f5;
     }
     .canvas-container {
       display: flex;
@@ -16,57 +19,195 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
-    }
-    .canvas-container #canvas-container {
+      padding: 20px;
       position: relative;
+    }
+    
+    #canvas-container {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       width: 80%;
       max-width: 800px;
       height: 60vh;
-      background-color: #f0f0f0;
-      border: 2px solid #000;
+      background-color: #ffffff;
+      border: 1px solid #ddd;
     }
-    .canvas-container #map-canvas {
+    #map-canvas {
       width: 100%;
       height: 100%;
     }
-    .canvas-container .toolbar {
-      margin-top: 10px;
+    .toolbar {
+      margin-top: 20px;
       display: flex;
       justify-content: center;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-    .canvas-container .toolbar button, .canvas-container .color-picker {
-      margin: 0 5px;
-      padding: 10px;
+    .toolbar button, .toolbar .color-picker, .toolbar select {
+      padding: 10px 15px;
       cursor: pointer;
       border: none;
       border-radius: 5px;
+      background-color: #6200ea;
+      color: #ffffff;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background-color 0.3s ease;
     }
-    .canvas-container .color-picker {
+    .toolbar .color-picker {
+      padding: 0;
+      border-radius: 50%;
       width: 40px;
       height: 40px;
-      border-radius: 50%;
+      border: 2px solid #6200ea;
     }
+    .toolbar button:hover, .toolbar select:hover {
+      background-color: #3700b3;
+    }
+    .toolbar select {
+      background-color: #6200ea;
+      color: white;
+      padding: 10px;
+      width: auto;
+    }
+    .toolbar button.active {
+      background-color: #3700b3; /* Active tool color */
+    }
+    .undo-redo {
+  text-align: right;
+}
+
+.undo-redo button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  margin-left: 10px; /* Adjust the margin as needed */
+}
+
+
+
+
+
   </style>
 </head>
 <body>
   <div class="canvas-container">
     <div id="canvas-container">
+      <button id="undo" class="icon-button"><i class="fas fa-undo"></i></button>
+      <button id="redo" class="icon-button"><i class="fas fa-redo"></i></button>
       <canvas id="map-canvas"></canvas>
     </div>
     <div class="toolbar">
       <input type="color" id="color-picker" class="color-picker">
-      <button id="freehand-draw">Freehand Draw</button>
-      <button id="draw-line">Draw Line</button>
-      <button id="draw-rectangle">Draw Rectangle</button>
-      <button id="draw-circle">Draw Circle</button>
+      <button id="freehand-draw">Draw</button>
+      <button id="draw-line">Line</button>
+      <button id="draw-rectangle">Rectangle</button>
+      <button id="draw-circle">Circle</button>
       <button id="eraser">Eraser</button>
-      <button id="clear-canvas">Clear Canvas</button>
+      <button id="clear-canvas">Clear</button>
+      <button id="add-text">Text</button>
+      <button id="export-canvas">Export</button>
+      <button id="upload-image">Image</button>
+      <select id="filter-selector">
+        <option value="none">Filter</option>
+        <option value="grayscale">Grayscale</option>
+        <option value="sepia">Sepia</option>
+        <option value="invert">Invert</option>
+        <option value="brightness">Brightness</option>
+      </select>
+      <button id="apply-filter">Apply</button>
+      <button id="selector">Select</button>
+      <button id="copy-canvas-image">Copy Image as Prompt</button>
+      <button id="convert-canvas-to-prompt">Convert Canvas to Prompt</button>
+
+
+      <!-- Add the new select button -->
+    </div>
+  
     </div>
   </div>
   
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.3.1/fabric.min.js"></script>
   <script>
+    // Initialize an array to keep the states of the canvas
+    let canvasState = [];
+    let currentStateIndex = -1;
+    let undoFinishedStatus = true;
+    let redoFinishedStatus = true;
+
+    // Function to save the current state of the canvas
+    function saveCanvasState(canvas) {
+      if (undoFinishedStatus && redoFinishedStatus) {
+        const canvasAsJson = JSON.stringify(canvas);
+        if (currentStateIndex < canvasState.length - 1) {
+          const indexToBeInserted = currentStateIndex + 1;
+          canvasState[indexToBeInserted] = canvasAsJson;
+          const numberOfElementsToDelete = canvasState.length - indexToBeInserted - 1;
+          canvasState.splice(indexToBeInserted + 1, numberOfElementsToDelete);
+          currentStateIndex = indexToBeInserted;
+        } else {
+          canvasState.push(canvasAsJson);
+          currentStateIndex++;
+        }
+      }
+    }
+
+    // Function to undo the last action
+    function undoCanvasState(canvas) {
+      if (undoFinishedStatus && redoFinishedStatus) {
+        if (currentStateIndex !== 0) {
+          undoFinishedStatus = false;
+          canvas.clear();
+          canvas.loadFromJSON(canvasState[currentStateIndex - 1], function() {
+            canvas.renderAll();
+            undoFinishedStatus = true;
+            currentStateIndex--;
+          });
+        }
+      }
+    }
+
+    // Function to redo the last undone action
+    function redoCanvasState(canvas) {
+      if (undoFinishedStatus && redoFinishedStatus) {
+        if (canvasState.length > currentStateIndex + 1) {
+          redoFinishedStatus = false;
+          canvas.clear();
+          canvas.loadFromJSON(canvasState[currentStateIndex + 1], function() {
+            canvas.renderAll();
+            redoFinishedStatus = true;
+            currentStateIndex++;
+          });
+        }
+      }
+    }
+
+    // Save the initial state of the canvas
+    function initializeCanvas(canvas) {
+      saveCanvasState(canvas);
+
+      // Event listeners for undo and redo actions
+      document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+          undoCanvasState(canvas);
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+          redoCanvasState(canvas);
+        }
+      });
+
+      // Add event listeners to save the state after each operation
+      canvas.on('object:modified', function() {
+        saveCanvasState(canvas);
+      });
+
+      canvas.on('object:added', function() {
+        saveCanvasState(canvas);
+      });
+    }
+
+    // Initialize Fabric canvas
     const canvas = new fabric.Canvas('map-canvas', {
       backgroundColor: '#ffffff',
       selection: false,
@@ -82,6 +223,9 @@
       });
     });
 
+    // Initialize canvas and add event listeners
+    initializeCanvas(canvas);
+
     let isDrawing = false;
     let lastX, lastY;
 
@@ -92,152 +236,267 @@
     });
 
     document.getElementById('draw-line').addEventListener('click', () => {
+    canvas.isDrawingMode = false;
+    canvas.selection = false;
+    canvas.on('mouse:down', (opt) => {
+      isDrawing = true;
+      const pointer = canvas.getPointer(opt.e);
+      lastX = pointer.x;
+      lastY = pointer.y;
+      const line = new fabric.Line([lastX, lastY, lastX, lastY], {
+        strokeWidth: 2,
+        stroke: document.getElementById('color-picker').value
+      });
+      canvas.add(line);
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (!isDrawing) return;
+      const pointer = canvas.getPointer(opt.e);
+      const line = canvas.getObjects()[canvas.getObjects().length - 1];
+      line.set({ x2: pointer.x, y2: pointer.y });
+      canvas.renderAll();
+    });
+
+    canvas.on('mouse:up', () => {
+      isDrawing = false;
+    });
+  });
+
+  document.getElementById('draw-rectangle').addEventListener('click', () => {
+    canvas.isDrawingMode = false;
+    canvas.selection = false;
+    canvas.on('mouse:down', (opt) => {
+      isDrawing = true;
+      const pointer = canvas.getPointer(opt.e);
+      lastX = pointer.x;
+      lastY = pointer.y;
+      const rect = new fabric.Rect({
+        left: lastX,
+        top: lastY,
+        width: 0,
+        height: 0,
+        fill: 'transparent',
+        stroke: document.getElementById('color-picker').value,
+        strokeWidth: 2
+      });
+      canvas.add(rect);
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (!isDrawing) return;
+      const pointer = canvas.getPointer(opt.e);
+      const rect = canvas.getObjects()[canvas.getObjects().length - 1];
+      rect.set({ width: pointer.x - lastX, height: pointer.y - lastY });
+      canvas.renderAll();
+    });
+
+    canvas.on('mouse:up', () => {
+      isDrawing = false;
+    });
+  });
+
+  document.getElementById('draw-circle').addEventListener('click', () => {
+    canvas.isDrawingMode = false;
+    canvas.selection = false;
+    canvas.on('mouse:down', (opt) => {
+      isDrawing = true;
+      const pointer = canvas.getPointer(opt.e);
+      lastX = pointer.x;
+      lastY = pointer.y;
+      const circle = new fabric.Circle({
+        left: lastX,
+        top: lastY,
+        radius: 0,
+        fill: 'transparent',
+        stroke: document.getElementById('color-picker').value,
+        strokeWidth: 2
+      });
+      canvas.add(circle);
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (!isDrawing) return;
+      const pointer = canvas.getPointer(opt.e);
+      const circle = canvas.getObjects()[canvas.getObjects().length - 1];
+      const radius = Math.sqrt(Math.pow(pointer.x - lastX, 2) + Math.pow(pointer.y - lastY, 2));
+      circle.set({ radius: radius });
+      canvas.renderAll();
+    });
+
+    canvas.on('mouse:up', () => {
+      isDrawing = false;
+    });
+  });
+
+  document.getElementById('eraser').onclick = function() {
+// Enable drawing mode
+canvas.isDrawingMode = true;
+// Set the drawing brush to EraserBrush
+canvas.freeDrawingBrush = new fabric.EraserBrush(canvas);
+// Set the width of the eraser brush
+canvas.freeDrawingBrush.width = 10;
+};
+
+  document.getElementById('clear-canvas').addEventListener('click', () => {
+    canvas.clear();
+  });
+
+  document.getElementById('color-picker').addEventListener('input', () => {
+    canvas.freeDrawingBrush.color = document.getElementById('color-picker').value;
+  });
+
+  canvas.on('object:modified', (e) => {
+    console.log('Object modified:', e.target);
+  });
+
+  canvas.on('object:moving', (e) => {
+    console.log('Object moving:', e.target);
+  });
+
+  canvas.on('object:scaling', (e) => {
+    console.log('Object scaling:', e.target);
+  });
+
+  // Add text functionality
+  document.getElementById('add-text').addEventListener('click', () => {
+    const text = new fabric.IText('Type here...', {
+      left: 100,
+      top: 100,
+      fontFamily: 'arial',
+      fill: document.getElementById('color-picker').value,
+      fontSize: 20
+    });
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    text.enterEditing();
+    text.selectAll();
+    canvas.renderAll();
+  });
+
+  // Export canvas as PNG
+  document.getElementById('export-canvas').addEventListener('click', () => {
+    const dataURL = canvas.toDataURL({
+      format: 'png',
+      quality: 1
+    });
+    const link = document.createElement('a');
+    link.download = 'canvas.png';
+    link.href = dataURL;
+    link.click();
+  });
+   // Image upload functionality
+   document.getElementById('upload-image').addEventListener('click', function() {
+    var inputElement = document.createElement('input');
+    inputElement.type = 'file';
+    inputElement.onchange = function(e) {
+      var file = e.target.files[0];
+      var reader = new FileReader();
+      reader.onload = function(f) {
+        var data = f.target.result;
+        fabric.Image.fromURL(data, function(img) {
+          // Add the image to the canvas
+          canvas.add(img).renderAll();
+          var a = canvas.setActiveObject(img);
+          var dataURL = canvas.toDataURL({format: 'png', quality: 0.8});
+        });
+      };
+      reader.readAsDataURL(file);
+    };
+    inputElement.click();
+  });
+
+  // Apply filter functionality
+  document.getElementById('apply-filter').addEventListener('click', function() {
+    var activeObject = canvas.getActiveObject();
+    if (activeObject && activeObject.type === 'image') {
+      var selectedFilter = document.getElementById('filter-selector').value;
+      activeObject.filters = []; // Clear existing filters
+      switch (selectedFilter) {
+        case 'grayscale':
+          activeObject.filters.push(new fabric.Image.filters.Grayscale());
+          break;
+        case 'sepia':
+          activeObject.filters.push(new fabric.Image.filters.Sepia());
+          break;
+        case 'invert':
+          activeObject.filters.push(new fabric.Image.filters.Invert());
+          break;
+        case 'brightness':
+          activeObject.filters.push(new fabric.Image.filters.Brightness({
+            brightness: 0.05 // Adjust as needed
+          }));
+          break;
+        // Add more filters as needed
+      }
+      activeObject.applyFilters();
+      canvas.renderAll();
+    }
+  });
+    // Function to enable selection mode
+    function enableSelection() {
       canvas.isDrawingMode = false;
-      canvas.selection = false;
-      canvas.on('mouse:down', (opt) => {
-        isDrawing = true;
-        const pointer = canvas.getPointer(opt.e);
-        lastX = pointer.x;
-        lastY = pointer.y;
-        const line = new fabric.Line([lastX, lastY, lastX, lastY], {
-          strokeWidth: 2,
-          stroke: document.getElementById('color-picker').value
-        });
-        canvas.add(line);
+      canvas.selection = true;
+      document.querySelectorAll('.toolbar button').forEach(button => {
+        button.classList.remove('active');
       });
+      document.getElementById('selector').classList.add('active');
+    }
 
-      canvas.on('mouse:move', (opt) => {
-        if (!isDrawing) return;
-        const pointer = canvas.getPointer(opt.e);
-        const line = canvas.getObjects()[canvas.getObjects().length - 1];
-        line.set({ x2: pointer.x, y2: pointer.y });
-        canvas.renderAll();
-      });
+    // Add event listener for the select button
+    document.getElementById('selector').addEventListener('click', enableSelection);
 
-      canvas.on('mouse:up', () => {
-        isDrawing = false;
-      });
-    });
-
-    document.getElementById('draw-rectangle').addEventListener('click', () => {
-      canvas.isDrawingMode = false;
-      canvas.selection = false;
-      canvas.on('mouse:down', (opt) => {
-        isDrawing = true;
-        const pointer = canvas.getPointer(opt.e);
-        lastX = pointer.x;
-        lastY = pointer.y;
-        const rect = new fabric.Rect({
-          left: lastX,
-          top: lastY,
-          width: 0,
-          height: 0,
-          fill: 'transparent',
-          stroke: document.getElementById('color-picker').value,
-          strokeWidth: 2
-        });
-        canvas.add(rect);
-      });
-
-      canvas.on('mouse:move', (opt) => {
-        if (!isDrawing) return;
-        const pointer = canvas.getPointer(opt.e);
-        const rect = canvas.getObjects()[canvas.getObjects().length - 1];
-        rect.set({ width: pointer.x - lastX, height: pointer.y - lastY });
-        canvas.renderAll();
-      });
-
-      canvas.on('mouse:up', () => {
-        isDrawing = false;
-      });
-    });
-
-    document.getElementById('draw-circle').addEventListener('click', () => {
-      canvas.isDrawingMode = false;
-      canvas.selection = false;
-      canvas.on('mouse:down', (opt) => {
-        isDrawing = true;
-        const pointer = canvas.getPointer(opt.e);
-        lastX = pointer.x;
-        lastY = pointer.y;
-        const circle = new fabric.Circle({
-          left: lastX,
-          top: lastY,
-          radius: 0,
-          fill: 'transparent',
-          stroke: document.getElementById('color-picker').value,
-          strokeWidth: 2
-        });
-        canvas.add(circle);
-      });
-
-      canvas.on('mouse:move', (opt) => {
-        if (!isDrawing) return;
-        const pointer = canvas.getPointer(opt.e);
-        const circle = canvas.getObjects()[canvas.getObjects().length - 1];
-        const radius = Math.sqrt(Math.pow(pointer.x - lastX, 2) + Math.pow(pointer.y - lastY, 2));
-        circle.set({ radius: radius });
-        canvas.renderAll();
-      });
-
-      canvas.on('mouse:up', () => {
-        isDrawing = false;
-      });
-    });
-
-    document.getElementById('eraser').addEventListener('click', () => {
-      canvas.isDrawingMode = false;
-      canvas.selection = false;
-      canvas.forEachObject((obj) => {
-        obj.set({
-          selectable: false
-        });
-      });
-      canvas.on('mouse:down', (opt) => {
-        isDrawing = true;
-        const pointer = canvas.getPointer(opt.e);
-        const objects = canvas.getObjects();
-        objects.forEach(obj => {
-          if (obj.containsPoint(pointer)) {
-            canvas.remove(obj);
-          }
-        });
-      });
-
-      canvas.on('mouse:move', (opt) => {
-        if (!isDrawing) return;
-        const pointer = canvas.getPointer(opt.e);
-        const objects = canvas.getObjects();
-        objects.forEach(obj => {
-          if (obj.containsPoint(pointer)) {
-            canvas.remove(obj);
-          }
-        });
-      });
-
-      canvas.on('mouse:up', () => {
-        isDrawing = false;
-      });
-    });
-
-    document.getElementById('clear-canvas').addEventListener('click', () => {
-      canvas.clear();
-    });
-
-    document.getElementById('color-picker').addEventListener('input', () => {
-      canvas.freeDrawingBrush.color = document.getElementById('color-picker').value;
-    });
-
-    canvas.on('object:modified', (e) => {
-      console.log('Object modified:', e.target);
-    });
-
+    // Event listener for moving selected objects
     canvas.on('object:moving', (e) => {
       console.log('Object moving:', e.target);
+      saveCanvasState(canvas); // Save state when an object is moved
     });
 
-    canvas.on('object:scaling', (e) => {
-      console.log('Object scaling:', e.target);
+    // Event listener for deleting selected objects
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Delete' && canvas.getActiveObject()) {
+        canvas.remove(canvas.getActiveObject());
+        saveCanvasState(canvas); // Save state after deletion
+      }
+    });
+    document.getElementById('copy-canvas-image').addEventListener('click', () => {
+      // Get the canvas data URL
+      const dataURL = canvas.toDataURL({
+        format: 'png',
+        quality: 1
+      });
+
+      // Set the data URL as the value of the prompt textarea
+      document.getElementById('prompt').value = dataURL;
+
+      // Optionally, focus on the prompt textarea after copying the image
+      document.getElementById('prompt').focus();
+    });
+
+  // Function to convert canvas to prompt
+  document.getElementById('convert-canvas-to-prompt').addEventListener('click', () => {
+      let prompt = '';
+
+      canvas.getObjects().forEach((obj) => {
+        switch (obj.type) {
+          case 'i-text':
+            prompt += `${obj.text} `;
+            break;
+          case 'line':
+            prompt += `Line from (${obj.x1}, ${obj.y1}) to (${obj.x2}, ${obj.y2}) `;
+            break;
+          case 'rect':
+            prompt += `Rectangle at (${obj.left}, ${obj.top}) with width ${obj.width} and height ${obj.height} `;
+            break;
+          case 'circle':
+            prompt += `Circle at (${obj.left}, ${obj.top}) with radius ${obj.radius} `;
+            break;
+          default:
+            console.log('Unknown object type:', obj.type);
+        }
+      });
+
+      document.getElementById('prompt').value = prompt.trim();
     });
   </script>
 </body>

@@ -3,6 +3,7 @@
     "tailwindcss": "^3.4.3"
   },
   "dependencies": {
+    "fabric-history": "^1.7.0",
     "flowbite": "^2.3.0"
   }
 }
